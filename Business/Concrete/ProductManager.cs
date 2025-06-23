@@ -46,15 +46,26 @@ namespace Business.Concrete
         [CacheAspect(duration: 10)]
         public IDataResult<List<Product>> GetListByCategory(int categoryId)
         {
-            return new SuccessDataResult<List<Product>>(_productDal.GetList(p => p.CategoryId == categoryId).ToList());
-        }
+            foreach (var category in _categoryService.GetList().Data)
+            {
+                if (category.CategoryId == categoryId)
+                {
+                    return new SuccessDataResult<List<Product>>(_productDal.GetList(p => p.CategoryId == categoryId).ToList());
+                }
+                else
+                {
+                    return new ErrorDataResult<List<Product>>(Messages.CategoryNotFound);
+                }
+            }
 
+            return new ErrorDataResult<List<Product>>(Messages.CategoryNotFound);
+        }
 
         [ValidationAspect(typeof(ProductValidator), Priority = 1)]
         [CacheRemoveAspect("IProductService.Get")]
         public IResult Add(Product product)
         {
-            IResult result = BusinessRules.Run(CheckIfProductNameExists(product.ProductName),CheckIfCategoryIsEnabled());
+            IResult result = BusinessRules.Run(CheckIfProductNameExists(product.ProductName), CheckIfCategoryIsEnabled());
 
             if (result != null)
             {
@@ -79,7 +90,7 @@ namespace Business.Concrete
         private IResult CheckIfCategoryIsEnabled()
         {
             var result = _categoryService.GetList();
-            if (result.Data.Count<10)
+            if (result.Data.Count < 10)
             {
                 return new ErrorResult(Messages.ProductNameAlreadyExists);
             }
